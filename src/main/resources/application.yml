@@ -1,0 +1,40 @@
+server:
+  port: ${SERVER_PORT:8443}
+  # 支持 Nginx 反向代理的 X-Forwarded-* 头
+  forward-headers-strategy: native
+  # HTTPS 配置
+  ssl:
+    enabled: ${SSL_ENABLED:true}
+    key-store: ${SSL_KEYSTORE:/etc/ssl/certs/server.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: cas-server
+  # HTTP 自动跳转 HTTPS
+  http2:
+    enabled: false
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET:cas-sso-secret-key-must-be-at-least-256-bits-long}
+  expiration: ${JWT_EXPIRATION:86400000}  # 毫秒，默认24小时
+
+cas:
+  ticket:
+    service:
+      lifetime: 300
+    granting:
+      lifetime: 86400
+  cookie:
+    name: CASTGC
+    http-only: true

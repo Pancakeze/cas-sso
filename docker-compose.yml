@@ -1,0 +1,67 @@
+services:
+
+  # ──────────────────────────────────────────────────────
+  # CAS 后端服务（HTTPS）
+  # ──────────────────────────────────────────────────────
+  cas-server:
+    build:
+      context: .          # day02/ 目录（含 pom.xml 和 src/）
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    image: cas-server:1.0.0
+    container_name: cas-server
+    restart: unless-stopped
+    ports:
+      - "8443:8443"   # HTTPS
+    environment:
+      SERVER_PORT: 8443
+      SSL_ENABLED: "true"
+      SSL_KEYSTORE_PASSWORD: "changeit"
+      # 本地 Redis（本地测试用）
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: 0
+    volumes:
+      - ./ssl:/etc/ssl/certs   # 挂载证书目录（容器自动生成）
+    depends_on:
+      - redis
+    networks:
+      - sso-net
+
+  # ──────────────────────────────────────────────────────
+  # Redis（本地测试用）
+  # ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cas-redis
+    restart: unless-stopped
+    networks:
+      - sso-net
+
+  # ──────────────────────────────────────────────────────
+  # CAS 前端门户（HTTP）
+  # ──────────────────────────────────────────────────────
+  cas-portal:
+    build:
+      context: ./cas-client   # cas-client/ 目录（含 package.json）
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+      args:
+        # 前端使用相对路径，通过 Nginx 代理转发到后端 HTTPS
+        VITE_CAS_BASE_URL: /cas
+    image: cas-portal:1.0.0
+    container_name: cas-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # HTTP
+    depends_on:
+      - cas-server
+    networks:
+      - sso-net
+
+networks:
+  sso-net:
+    driver: bridge

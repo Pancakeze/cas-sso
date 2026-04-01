@@ -1,0 +1,42 @@
+# ============================================================
+# 服务器离线部署版 docker-compose
+# 使用前只需修改：
+#   1. REDIS_HOST / REDIS_PORT / REDIS_PASSWORD
+#
+# 注意：VITE_CAS_BASE_URL 已在构建时设为 http://localhost:3000/cas
+#      前端通过 Nginx 反向代理 /cas/ 路径访问后端，无需修改
+#      用任意 IP 访问 http://服务器IP:3000 均可正常使用
+# ============================================================
+
+services:
+
+  cas-server:
+    image: cas-server:1.0.0          # 使用 docker load 加载好的镜像
+    container_name: cas-server
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      SERVER_PORT: 8085
+      # ▼▼▼ 修改为你的 Redis 信息 ▼▼▼
+      REDIS_HOST: 172.38.110.121
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: 0
+    networks:
+      - sso-net
+
+  cas-portal:
+    image: cas-portal:1.0.0          # 使用 docker load 加载好的镜像
+    container_name: cas-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - cas-server
+    networks:
+      - sso-net
+
+networks:
+  sso-net:
+    driver: bridge

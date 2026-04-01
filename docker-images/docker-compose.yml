@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  # ──────────────────────────────────────────────────────
+  # CAS 后端服务（HTTPS）
+  # ──────────────────────────────────────────────────────
+  cas-server:
+    image: cas-server:1.0.0
+    container_name: cas-server
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    environment:
+      - SERVER_PORT=8443
+      - SSL_ENABLED=true
+      - SSL_KEYSTORE_PASSWORD=changeit
+      - REDIS_HOST=172.38.110.121
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=你的密码
+      - REDIS_DATABASE=0
+    volumes:
+      - ./ssl:/etc/ssl/certs
+    networks:
+      - sso-net
+
+  # ──────────────────────────────────────────────────────
+  # Redis（本地测试用）
+  # ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cas-redis
+    restart: unless-stopped
+    networks:
+      - sso-net
+
+  # ──────────────────────────────────────────────────────
+  # CAS 前端门户（HTTP）
+  # ──────────────────────────────────────────────────────
+  cas-portal:
+    image: cas-portal:1.0.0
+    container_name: cas-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - cas-server
+    networks:
+      - sso-net
+
+networks:
+  sso-net:
+    driver: bridge
