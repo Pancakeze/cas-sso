@@ -6,24 +6,20 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      // CAS 后端代理（开发环境用）
-      // 后端已改为 HTTPS 8443
+      // CAS 后端代理（开发环境用 HTTP 8080）
       '/cas': {
-        target: 'https://localhost:8443',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: false,  // 允许自签名证书
       },
       // Token 接口代理
       '/token-server': {
-        target: 'https://localhost:8443',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: false,
       },
       // UAC 接口代理
       '/uac': {
-        target: 'https://localhost:8443',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: false,
       }
     }
   }

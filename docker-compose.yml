@@ -1,7 +1,7 @@
 services:
 
   # ──────────────────────────────────────────────────────
-  # CAS 后端服务（HTTPS）
+  # CAS 后端服务（HTTP）
   # ──────────────────────────────────────────────────────
   cas-server:
     build:
@@ -13,18 +13,14 @@ services:
     container_name: cas-server
     restart: unless-stopped
     ports:
-      - "8443:8443"   # HTTPS
+      - "8080:8080"   # HTTP
     environment:
-      SERVER_PORT: 8443
-      SSL_ENABLED: "true"
-      SSL_KEYSTORE_PASSWORD: "changeit"
+      SERVER_PORT: 8080
       # 本地 Redis（本地测试用）
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       REDIS_DATABASE: 0
-    volumes:
-      - ./ssl:/etc/ssl/certs   # 挂载证书目录（容器自动生成）
     depends_on:
       - redis
     networks:
@@ -50,7 +46,7 @@ services:
       platforms:
         - linux/amd64
       args:
-        # 前端使用相对路径，通过 Nginx 代理转发到后端 HTTPS
+        # 前端使用相对路径，通过 Nginx 代理转发到后端 HTTP
         VITE_CAS_BASE_URL: /cas
     image: cas-portal:1.0.0
     container_name: cas-portal
