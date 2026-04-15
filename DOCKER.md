@@ -17,21 +17,34 @@ day02/
 
 ## 修改配置
 
-在 `docker-compose.yml` 中修改以下环境变量：
+所有环境变量统一在 `config.env` 文件中配置，**无需修改 docker-compose.yml**。
+
+### 配置文件位置
+
+```
+day02/
+├── config.env          # ← 修改这个文件
+├── docker-compose.yml
+└── ...
+```
+
+### 需要修改的变量
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
-| `REDIS_HOST` | 已有 Redis 的 IP | `172.38.110.121` |
+| `REDIS_HOST` | 已有 Redis 的 IP | `172.38.110.237` |
 | `REDIS_PORT` | Redis 端口 | `6379` |
 | `REDIS_PASSWORD` | Redis 密码（无则留空） | `""` |
 | `REDIS_DATABASE` | Redis 数据库编号 | `0` |
+| `VITE_CAS_BASE_URL` | CAS 基础地址 | `http://172.38.110.237:3000/cas` |
+| `VITE_CLIENT_SERVICE_URL` | 客户端服务地址 | `http://172.38.110.237:3000` |
+| `VITE_SSO_UC_URL` | 统一用户中心地址 | `http://172.38.110.237:9090/sso/login` |
 
-如果你的 Linux 服务器对外 IP 不是 localhost，还需同步修改：
+### 修改后重启服务
 
-```yaml
-args:
-  VITE_CAS_BASE_URL: http://<你的服务器IP>:3000/cas
-  VITE_CLIENT_SERVICE_URL: http://<你的服务器IP>:3000
+```bash
+# 修改 config.env 后，重启服务生效
+docker compose restart
 ```
 
 ## 构建并启动

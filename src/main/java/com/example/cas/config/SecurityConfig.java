@@ -20,6 +20,7 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
                 // CAS 核心接口 - 允许访问
                 .requestMatchers("/cas/login", "/cas/validate", "/cas/serviceValidate", "/cas/logout").permitAll()
@@ -27,7 +28,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/**", "/token-server/**", "/uac/openAPI/**").permitAll()
                 // 其他请求需要认证
                 .anyRequest().authenticated()
-            );
+            )
+            .formLogin(form -> form.disable())  // 禁用默认表单登录，使用自定义登录
+            .httpBasic(basic -> basic.disable()); // 禁用 HTTP Basic
         return http.build();
     }
 

@@ -1,0 +1,37 @@
+server:
+  port: 8080
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+
+# Redis 配置
+# 如果使用外部 Redis，修改 host 为外部地址
+# 如果使用本地内存存储（测试用），注释掉整个 redis 配置
+spring:
+  data:
+    redis:
+      host: 172.38.110.237  # 外部 Redis 地址，或改为 localhost 如果使用宿主机 Redis
+      port: 6379
+      password: ""
+      database: 0
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+
+# JWT 配置
+jwt:
+  secret: cas-sso-secret-key-must-be-at-least-256-bits-long
+  expiration: 86400000
+
+# CAS 配置
+cas:
+  ticket:
+    service:
+      lifetime: 300
+    granting:
+      lifetime: 86400
+  cookie:
+    name: CASTGC
+    http-only: true

@@ -1,35 +1,18 @@
-version: '3'
-
 services:
   # ──────────────────────────────────────────────────────
-  # CAS 后端服务（HTTPS）
+  # CAS 后端服务（HTTP）
   # ──────────────────────────────────────────────────────
   cas-server:
     image: cas-server:1.0.0
     container_name: cas-server
     restart: unless-stopped
     ports:
-      - "8443:8443"
-    environment:
-      - SERVER_PORT=8443
-      - SSL_ENABLED=true
-      - SSL_KEYSTORE_PASSWORD=changeit
-      - REDIS_HOST=172.38.110.121
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=你的密码
-      - REDIS_DATABASE=0
+      - "8083:8080"   # 宿主机 8083 映射到容器 8080
+    # 外置配置映射：修改宿主机 config/server/application.yml 后重启生效
     volumes:
-      - ./ssl:/etc/ssl/certs
-    networks:
-      - sso-net
-
-  # ──────────────────────────────────────────────────────
-  # Redis（本地测试用）
-  # ──────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: cas-redis
-    restart: unless-stopped
+      - ./config/server/application.yml:/app/config/application.yml:ro
+    environment:
+      - SPRING_CONFIG_LOCATION=classpath:/,file:/app/config/application.yml
     networks:
       - sso-net
 
@@ -42,6 +25,9 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    # 外置配置映射：修改宿主机 config/portal/config.json 后刷新浏览器生效
+    volumes:
+      - ./config/portal/config.json:/usr/share/nginx/html/config.json:ro
     depends_on:
       - cas-server
     networks:

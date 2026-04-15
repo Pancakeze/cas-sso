@@ -80,9 +80,15 @@ public class ValidateController {
      */
     @GetMapping(value = "/serviceValidate", produces = MediaType.APPLICATION_XML_VALUE)
     public String serviceValidate(@RequestParam String service, @RequestParam String ticket) {
+        log.info("serviceValidate 请求: service={}, ticket={}", service, ticket);
+        
         var stOpt = ticketService.consumeST(ticket);
+        log.info("consumeST 结果: present={}", stOpt.isPresent());
+        
         if (stOpt.isPresent() && !stOpt.get().isExpired() && isServiceMatch(stOpt.get().getService(), service)) {
             String username = stOpt.get().getUsername();
+            log.info("serviceValidate 验证成功: username={}, storedService={}, requestedService={}", 
+                    username, stOpt.get().getService(), service);
 
             // 生成 JWT userToken 并存入 Redis
             String userToken = authService.storeUserToken(username);
@@ -99,6 +105,13 @@ public class ValidateController {
                     "  </cas:authenticationSuccess>\n" +
                     "</cas:serviceResponse>";
         }
+        
+        log.warn("serviceValidate 验证失败: ticket={}, stOptPresent={}, expired={}, serviceMatch={}", 
+                ticket, 
+                stOpt.isPresent() ? "true" : "false",
+                stOpt.isPresent() ? stOpt.get().isExpired() : "N/A",
+                stOpt.isPresent() ? isServiceMatch(stOpt.get().getService(), service) : "N/A");
+        
         return "<?xml version=\"1.0\"?>\n" +
                 "<cas:serviceResponse xmlns:cas=\"http://www.yale.edu/tp/cas\">\n" +
                 "  <cas:authenticationFailure code=\"INVALID_TICKET\">Invalid ticket</cas:authenticationFailure>\n" +

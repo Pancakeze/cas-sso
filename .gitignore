@@ -3,6 +3,7 @@ target/
 *.jar
 *.war
 *.ear
+*.original
 
 # Node
 node_modules/
@@ -18,6 +19,8 @@ yarn-error.log*
 *.swp
 *.swo
 .DS_Store
+# IntelliJ 模块文件
+cas-server.iml
 
 # Docker
 docker-images/*.tar
@@ -38,3 +41,27 @@ ssl/
 # Logs
 *.log
 logs/
+
+# ========================
+# 项目特定配置（按需调整）
+# ========================
+
+# 文档类（按需提交，可选忽略）
+# 取消注释下面这行以忽略所有 markdown 文档：
+# *.md
+
+# 工作内存目录
+.workbuddy/
+
+# Vite 构建缓存（前端）
+cas-client/.vite/
+
+# 运行时 Dockerfile（生产部署用，可按需保留）
+Dockerfile.runtime
+cas-client/Dockerfile.runtime
+
+# 前端环境变量示例
+cas-client/.env.example
+
+# 前端 public 静态资源（可按需保留）
+cas-client/public/

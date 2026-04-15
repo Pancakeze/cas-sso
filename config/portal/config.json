@@ -1,0 +1,4 @@
+{
+  "CAS_BASE_URL": "/cas",
+  "SSO_UC_URL": "http://172.38.110.237:9090/sso/login"
+}

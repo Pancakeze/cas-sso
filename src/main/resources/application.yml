@@ -2,14 +2,23 @@ server:
   port: ${SERVER_PORT:8080}
   # 支持 Nginx 反向代理的 X-Forwarded-* 头
   forward-headers-strategy: native
+  # 信任所有代理头（内网环境安全）
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+
+# Redis 配置 - 本地开发禁用，使用内存存储
+# 生产环境取消注释并配置正确的 Redis 地址
+# spring:
+#   data:
+#     redis:
+#       host: ${REDIS_HOST:localhost}
+#       port: ${REDIS_PORT:6379}
+#       password: ${REDIS_PASSWORD:}
+#       database: ${REDIS_DATABASE:0}
 
 spring:
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DATABASE:0}
   thymeleaf:
     cache: false
     prefix: classpath:/templates/

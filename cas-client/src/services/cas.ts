@@ -1,7 +1,15 @@
 // CAS 客户端服务
-// 优先读取 Vite 注入的环境变量，本地开发时回退到默认值
-// 生产环境使用相对路径，通过 Nginx 反向代理解决跨域
-const CAS_BASE_URL = (import.meta.env.VITE_CAS_BASE_URL as string) || '/cas';
+// 配置从 /config.json 动态加载，支持不重新构建镜像修改配置
+import { loadRuntimeConfig, getConfig } from '../config';
+
+// 初始化时加载配置
+let configLoaded = false;
+const ensureConfig = async () => {
+  if (!configLoaded) {
+    await loadRuntimeConfig();
+    configLoaded = true;
+  }
+};
 
 // 获取当前页面地址作为 service
 const getServiceUrl = () => {
@@ -67,21 +75,38 @@ export function buildSubSystemUrl(
 
 export class CASClient {
   // 获取 CAS 登录地址
-  static getLoginUrl(): string {
+  static async getLoginUrl(): Promise<string> {
+    await ensureConfig();
+    const config = getConfig();
     const service = encodeURIComponent(getServiceUrl());
-    return `${CAS_BASE_URL}/login?service=${service}`;
+    return `${config.CAS_BASE_URL}/login?service=${service}`;
   }
 
   // 处理 CAS 回调
   static async handleCallback(ticket: string): Promise<CASUser> {
+    await ensureConfig();
+    const config = getConfig();
     const service = encodeURIComponent(getServiceUrl());
+    
+    console.log('[CAS] handleCallback - ticket:', ticket);
+    console.log('[CAS] handleCallback - service:', service);
+    console.log('[CAS] handleCallback - CAS_BASE_URL:', config.CAS_BASE_URL);
 
-    const response = await fetch(
-      `${CAS_BASE_URL}/serviceValidate?service=${service}&ticket=${ticket}`
-    );
+    const validateUrl = `${config.CAS_BASE_URL}/serviceValidate?service=${service}&ticket=${ticket}`;
+    console.log('[CAS] handleCallback - validateUrl:', validateUrl);
 
-    const xml = await response.text();
-    return this.parseCASResponse(xml);
+    try {
+      const response = await fetch(validateUrl);
+      console.log('[CAS] handleCallback - response status:', response.status);
+      
+      const xml = await response.text();
+      console.log('[CAS] handleCallback - XML response:', xml);
+      
+      return this.parseCASResponse(xml);
+    } catch (error) {
+      console.error('[CAS] handleCallback - fetch error:', error);
+      throw error;
+    }
   }
 
   // 解析 CAS XML 响应
@@ -118,8 +143,10 @@ export class CASClient {
   }
 
   // 登出
-  static logout(): void {
-    window.location.href = `${CAS_BASE_URL}/logout?service=${encodeURIComponent(getServiceUrl())}`;
+  static async logout(): Promise<void> {
+    await ensureConfig();
+    const config = getConfig();
+    window.location.href = `${config.CAS_BASE_URL}/logout?service=${encodeURIComponent(getServiceUrl())}`;
   }
 
   // 检查是否需要登录
@@ -155,50 +182,56 @@ export class CASClient {
 
 const SUBSYSTEMS_KEY = 'cas_subsystems';
 
-const DEFAULT_SUBSYSTEMS: SubSystem[] = [
-  {
-    id: 'oa',
-    name: 'OA 办公系统',
-    description: '企业内部办公自动化平台，处理审批、公告等日常办公事务',
-    url: 'http://localhost:3001/sso-callback',
-    appToken: generateToken(16),
-    icon: '🏢',
-    color: '#3b82f6',
-    status: 'online',
-  },
-  {
-    id: 'erp',
-    name: 'ERP 管理系统',
-    description: '企业资源计划系统，涵盖采购、库存、财务等核心业务',
-    url: 'http://localhost:3002/sso-callback',
-    appToken: generateToken(16),
-    icon: '📊',
-    color: '#10b981',
-    status: 'online',
-  },
-  {
-    id: 'crm',
-    name: 'CRM 客户管理',
-    description: '客户关系管理系统，跟踪销售线索和客户互动记录',
-    url: 'http://localhost:3003/sso-callback',
-    appToken: generateToken(16),
-    icon: '🤝',
-    color: '#f59e0b',
-    status: 'maintenance',
-  },
-  {
-    id: 'ehl-uc',
-    name: 'ehl-uc',
-    description: '统一用户中心',
-    url: 'http://172.38.110.121:9090/sso/login',
-    appToken: generateToken(16),
-    icon: '🔐',
-    color: '#8b5cf6',
-    status: 'online',
-  },
-];
+// 获取默认子系统配置（异步，因为需要读取运行时配置）
+const getDefaultSubSystems = async (): Promise<SubSystem[]> => {
+  await ensureConfig();
+  const config = getConfig();
+  
+  return [
+    {
+      id: 'oa',
+      name: 'OA 办公系统',
+      description: '企业内部办公自动化平台，处理审批、公告等日常办公事务',
+      url: 'http://localhost:3001/sso-callback',
+      appToken: generateToken(16),
+      icon: '🏢',
+      color: '#3b82f6',
+      status: 'online',
+    },
+    {
+      id: 'erp',
+      name: 'ERP 管理系统',
+      description: '企业资源计划系统，涵盖采购、库存、财务等核心业务',
+      url: 'http://localhost:3002/sso-callback',
+      appToken: generateToken(16),
+      icon: '📊',
+      color: '#10b981',
+      status: 'online',
+    },
+    {
+      id: 'crm',
+      name: 'CRM 客户管理',
+      description: '客户关系管理系统，跟踪销售线索和客户互动记录',
+      url: 'http://localhost:3003/sso-callback',
+      appToken: generateToken(16),
+      icon: '🤝',
+      color: '#f59e0b',
+      status: 'maintenance',
+    },
+    {
+      id: 'ehl-uc',
+      name: 'ehl-uc',
+      description: '统一用户中心',
+      url: config.SSO_UC_URL,
+      appToken: generateToken(16),
+      icon: '🔐',
+      color: '#8b5cf6',
+      status: 'online',
+    },
+  ];
+};
 
-export function getSubSystems(): SubSystem[] {
+export async function getSubSystems(): Promise<SubSystem[]> {
   const stored = localStorage.getItem(SUBSYSTEMS_KEY);
   if (stored) {
     try {
@@ -208,24 +241,25 @@ export function getSubSystems(): SubSystem[] {
     }
   }
   // 首次初始化
-  localStorage.setItem(SUBSYSTEMS_KEY, JSON.stringify(DEFAULT_SUBSYSTEMS));
-  return DEFAULT_SUBSYSTEMS;
+  const defaults = await getDefaultSubSystems();
+  localStorage.setItem(SUBSYSTEMS_KEY, JSON.stringify(defaults));
+  return defaults;
 }
 
 export function saveSubSystems(systems: SubSystem[]): void {
   localStorage.setItem(SUBSYSTEMS_KEY, JSON.stringify(systems));
 }
 
-export function addSubSystem(system: Omit<SubSystem, 'id'>): SubSystem {
-  const list = getSubSystems();
+export async function addSubSystem(system: Omit<SubSystem, 'id'>): Promise<SubSystem> {
+  const list = await getSubSystems();
   const newItem: SubSystem = { ...system, id: generateToken(8) };
   list.push(newItem);
   saveSubSystems(list);
   return newItem;
 }
 
-export function updateSubSystem(id: string, updates: Partial<SubSystem>): void {
-  const list = getSubSystems();
+export async function updateSubSystem(id: string, updates: Partial<SubSystem>): Promise<void> {
+  const list = await getSubSystems();
   const idx = list.findIndex(s => s.id === id);
   if (idx !== -1) {
     list[idx] = { ...list[idx], ...updates };
@@ -233,7 +267,7 @@ export function updateSubSystem(id: string, updates: Partial<SubSystem>): void {
   }
 }
 
-export function deleteSubSystem(id: string): void {
-  const list = getSubSystems().filter(s => s.id !== id);
+export async function deleteSubSystem(id: string): Promise<void> {
+  const list = (await getSubSystems()).filter(s => s.id !== id);
   saveSubSystems(list);
 }

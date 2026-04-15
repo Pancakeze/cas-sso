@@ -26,12 +26,27 @@ docker load -i cas-portal-1.0.0.tar.gz
 
 ### 3. 配置
 
-编辑 `docker-compose.yml` 中的 Redis 配置：
+编辑项目根目录的 `config.env` 文件：
 
-```yaml
-environment:
-  REDIS_HOST: 172.38.110.121    # 你的 Redis 地址
-  REDIS_PASSWORD: "你的密码"      # 你的 Redis 密码
+```bash
+# 进入项目根目录
+cd /path/to/day02
+
+# 修改配置文件
+vim config.env
+```
+
+需要修改的关键配置：
+
+```env
+# Redis 配置
+REDIS_HOST=172.38.110.237       # 你的 Redis 地址
+REDIS_PASSWORD=你的密码          # 你的 Redis 密码
+
+# 前端配置（根据实际服务器 IP 修改）
+VITE_CAS_BASE_URL=http://172.38.110.237:3000/cas
+VITE_CLIENT_SERVICE_URL=http://172.38.110.237:3000
+VITE_SSO_UC_URL=http://172.38.110.237:9090/sso/login
 ```
 
 ### 4. 启动服务

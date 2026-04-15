@@ -6,6 +6,8 @@ import com.example.cas.service.AuthenticationService;
 import com.example.cas.service.TicketService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,7 +19,9 @@ import java.nio.charset.StandardCharsets;
 @Controller
 @RequestMapping("/cas")
 public class LoginController {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(LoginController.class);
+
     private final AuthenticationService authService;
     private final TicketService ticketService;
     
@@ -67,15 +71,19 @@ public class LoginController {
             HttpServletResponse response,
             Model model) {
         
+        log.info("登录请求: username={}, service={}", username, service);
+        
         User user = authService.authenticate(username, password);
         
         if (user == null) {
+            log.warn("登录失败: username={}", username);
             model.addAttribute("error", "Invalid username or password");
             model.addAttribute("service", service);
             return "login";
         }
         
         TicketGrantingTicket tgt = ticketService.createTGT(username);
+        log.info("创建 TGT: username={}, tgtId={}", username, tgt.getId());
         
         Cookie cookie = new Cookie(cookieName, tgt.getId());
         cookie.setHttpOnly(true);
@@ -83,7 +91,10 @@ public class LoginController {
         response.addCookie(cookie);
         
         if (service != null) {
-            return "redirect:" + service + "?ticket=" + ticketService.createST(service, tgt).getId();
+            String ticketId = ticketService.createST(service, tgt).getId();
+            String redirectUrl = service + "?ticket=" + ticketId;
+            log.info("登录成功，重定向到: {}", redirectUrl);
+            return "redirect:" + redirectUrl;
         }
         
         model.addAttribute("username", username);

@@ -17,10 +17,11 @@ export default function Portal() {
       localStorage.removeItem('cas_subsystems');
       
       // 获取所有子系统
-      const systems = getSubSystems();
-      console.log('加载子系统列表:', systems);
-      setSubSystems(systems);
-      setLoading(false);
+      getSubSystems().then(systems => {
+        console.log('加载子系统列表:', systems);
+        setSubSystems(systems);
+        setLoading(false);
+      });
     }
   }, [user]);
 

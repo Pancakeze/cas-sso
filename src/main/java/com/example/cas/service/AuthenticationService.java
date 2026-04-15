@@ -5,6 +5,7 @@ import com.example.cas.model.UserInfo;
 import com.example.cas.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,9 @@ public class AuthenticationService {
 
     private final Map<String, User> users = new ConcurrentHashMap<>(); // username -> User
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    /** Redis 操作模板，本地开发无 Redis 时为 null */
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
 
     /**
@@ -36,8 +39,7 @@ public class AuthenticationService {
     @Value("${jwt.expiration:24}")
     private int tokenExpirationHours;
 
-    public AuthenticationService(RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
-        this.redisTemplate = redisTemplate;
+    public AuthenticationService(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
 
         // 初始化默认用户
@@ -79,17 +81,21 @@ public class AuthenticationService {
 
             String userToken = jwtUtil.generateToken(username, extra);
 
-            // 存入 Redis（key: USER_TOKEN_PREFIX + userToken, value: username）
-            String redisKey = USER_TOKEN_PREFIX + userToken;
-            redisTemplate.opsForValue().set(redisKey, username, tokenExpirationHours, TimeUnit.HOURS);
-
-            // 同时存储用户信息到 Redis
-            String userInfoKey = USER_PREFIX + username;
-            redisTemplate.opsForHash().put(userInfoKey, "username", username);
-            redisTemplate.opsForHash().put(userInfoKey, "userToken", userToken);
-            redisTemplate.opsForHash().put(userInfoKey, "expireTime", String.valueOf(System.currentTimeMillis() + tokenExpirationHours * 3600 * 1000L));
-            user.getAttributes().forEach((k, v) -> redisTemplate.opsForHash().put(userInfoKey, k, v));
-            redisTemplate.expire(userInfoKey, tokenExpirationHours, TimeUnit.HOURS);
+            // 存入 Redis（本地无 Redis 时跳过）
+            if (redisTemplate != null) {
+                try {
+                    String redisKey = USER_TOKEN_PREFIX + userToken;
+                    redisTemplate.opsForValue().set(redisKey, username, tokenExpirationHours, TimeUnit.HOURS);
+                    String userInfoKey = USER_PREFIX + username;
+                    redisTemplate.opsForHash().put(userInfoKey, "username", username);
+                    redisTemplate.opsForHash().put(userInfoKey, "userToken", userToken);
+                    redisTemplate.opsForHash().put(userInfoKey, "expireTime", String.valueOf(System.currentTimeMillis() + tokenExpirationHours * 3600 * 1000L));
+                    user.getAttributes().forEach((k, v) -> redisTemplate.opsForHash().put(userInfoKey, k, v));
+                    redisTemplate.expire(userInfoKey, tokenExpirationHours, TimeUnit.HOURS);
+                } catch (Exception e) {
+                    log.warn("Redis 存储失败: {}", e.getMessage());
+                }
+            }
 
             log.info("用户 {} 登录成功，生成 JWT userToken: {}", username, userToken.substring(0, 20) + "...");
 
@@ -113,21 +119,27 @@ public class AuthenticationService {
             return Optional.empty();
         }
 
-        // 从 Redis 获取用户名
-        String redisKey = USER_TOKEN_PREFIX + userToken;
-        Object usernameObj = redisTemplate.opsForValue().get(redisKey);
-
-        if (usernameObj != null) {
-            String username = usernameObj.toString();
-            User user = users.get(username);
-            if (user != null) {
-                // 延长 token 有效期（可选：每次访问刷新过期时间）
-                redisTemplate.expire(redisKey, tokenExpirationHours, TimeUnit.HOURS);
-                return Optional.of(user);
+        // 从 Redis 获取用户名（本地无 Redis 时仅用 JWT 验证）
+        if (redisTemplate != null) {
+            String redisKey = USER_TOKEN_PREFIX + userToken;
+            Object usernameObj = redisTemplate.opsForValue().get(redisKey);
+            if (usernameObj != null) {
+                String username = usernameObj.toString();
+                User user = users.get(username);
+                if (user != null) {
+                    redisTemplate.expire(redisKey, tokenExpirationHours, TimeUnit.HOURS);
+                    return Optional.of(user);
+                }
             }
         }
 
-        return Optional.empty();
+        // fallback: 仅通过 JWT 解析用户名
+        try {
+            String username = jwtUtil.getUsernameFromToken(userToken);
+            return Optional.ofNullable(users.get(username));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -162,12 +174,17 @@ public class AuthenticationService {
         // 生成 JWT token，载荷包含完整的用户信息
         String userToken = jwtUtil.generateToken(username, userInfoToMap(userInfo));
 
-        // 存入 Redis
-        String redisKey = USER_TOKEN_PREFIX + userToken;
-        redisTemplate.opsForValue().set(redisKey, username, tokenExpirationHours, TimeUnit.HOURS);
+        // 存入 Redis（本地无 Redis 时跳过）
+        if (redisTemplate != null) {
+            try {
+                String redisKey = USER_TOKEN_PREFIX + userToken;
+                redisTemplate.opsForValue().set(redisKey, username, tokenExpirationHours, TimeUnit.HOURS);
+            } catch (Exception e) {
+                log.warn("Redis 存储 userToken 失败: {}", e.getMessage());
+            }
+        }
 
-        log.info("为用户 {} 生成 JWT userToken，包含信息: pid={}, name={}, orgCode={}", 
-                username, userInfo.getPid(), userInfo.getName(), userInfo.getOrgCode());
+        log.info("为用户 {} 生成 JWT userToken", username);
 
         return userToken;
     }
@@ -207,8 +224,9 @@ public class AuthenticationService {
      */
     public void logout(String userToken) {
         if (userToken != null && !userToken.isBlank()) {
-            String redisKey = USER_TOKEN_PREFIX + userToken;
-            redisTemplate.delete(redisKey);
+            if (redisTemplate != null) {
+                redisTemplate.delete(USER_TOKEN_PREFIX + userToken);
+            }
             log.info("用户登出，删除 token: {}", userToken.substring(0, 10) + "...");
         }
     }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import {
   SubSystem,
   getSubSystems,
@@ -19,24 +19,30 @@ interface SubSystemContextType {
 const SubSystemContext = createContext<SubSystemContextType | null>(null);
 
 export function SubSystemProvider({ children }: { children: ReactNode }) {
-  const [systems, setSystems] = useState<SubSystem[]>(() => getSubSystems());
+  const [systems, setSystems] = useState<SubSystem[]>([]);
 
-  const refreshSystems = () => {
-    setSystems(getSubSystems());
+  // 初始化加载
+  useEffect(() => {
+    getSubSystems().then(setSystems);
+  }, []);
+
+  const refreshSystems = async () => {
+    const list = await getSubSystems();
+    setSystems(list);
   };
 
-  const add = (system: Omit<SubSystem, 'id'>) => {
-    const newItem = addSubSystem(system);
+  const add = async (system: Omit<SubSystem, 'id'>) => {
+    const newItem = await addSubSystem(system);
     setSystems(prev => [...prev, newItem]);
   };
 
-  const update = (id: string, updates: Partial<SubSystem>) => {
-    updateSubSystem(id, updates);
+  const update = async (id: string, updates: Partial<SubSystem>) => {
+    await updateSubSystem(id, updates);
     setSystems(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
-  const remove = (id: string) => {
-    deleteSubSystem(id);
+  const remove = async (id: string) => {
+    await deleteSubSystem(id);
     setSystems(prev => prev.filter(s => s.id !== id));
   };
 

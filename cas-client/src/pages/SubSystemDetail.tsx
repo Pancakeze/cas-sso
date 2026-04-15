@@ -15,36 +15,37 @@ export default function SubSystemDetail() {
 
   useEffect(() => {
     if (id && user) {
-      const systems = getSubSystems();
-      const found = systems.find(s => s.id === id);
-      
-      if (!found) {
-        setSubSystemError('子系统不存在');
+      getSubSystems().then(systems => {
+        const found = systems.find((s: SubSystem) => s.id === id);
+        
+        if (!found) {
+          setSubSystemError('子系统不存在');
+          setLoading(false);
+          return;
+        }
+
+        setSubSystem(found);
+
+        // 生成带 token 的 URL
+        const nonce = generateToken(8);
+        const timestamp = Date.now().toString();
+        
+        const params = new URLSearchParams({
+          userToken: user.userToken || '',
+          appToken: found.appToken,
+          username: user.username || '',
+          timestamp,
+          nonce,
+          from: 'cas-portal',
+        });
+        
+        const finalUrl = `${found.url}?${params.toString()}`;
+        console.log(`[SubSystemDetail] 跳转URL: ${finalUrl}`);
+        console.log(`[SubSystemDetail] userToken: ${user.userToken}`);
+        console.log(`[SubSystemDetail] appToken: ${found.appToken}`);
+        setIframeUrl(finalUrl);
         setLoading(false);
-        return;
-      }
-
-      setSubSystem(found);
-
-      // 生成带 token 的 URL
-      const nonce = generateToken(8);
-      const timestamp = Date.now().toString();
-      
-      const params = new URLSearchParams({
-        userToken: user.userToken || '',
-        appToken: found.appToken,
-        username: user.username || '',
-        timestamp,
-        nonce,
-        from: 'cas-portal',
       });
-      
-      const finalUrl = `${found.url}?${params.toString()}`;
-      console.log(`[SubSystemDetail] 跳转URL: ${finalUrl}`);
-      console.log(`[SubSystemDetail] userToken: ${user.userToken}`);
-      console.log(`[SubSystemDetail] appToken: ${found.appToken}`);
-      setIframeUrl(finalUrl);
-      setLoading(false);
     }
   }, [id, user]);
 
